@@ -45,7 +45,7 @@ flowchart LR
 
 ## Repository layout
 
-```
+```text
 kodapay-api-v2/
 ├── pom.xml · mvnw
 ├── src/main/java/com/kodapay/api/
@@ -103,13 +103,13 @@ There is no CI configured in this repository.
 
 ## Technical decisions and trade-offs
 
-- **API-level idempotency**: protects against duplicate payments on retries; in memory in the MVP.
-- **Webhook signature validation**: rejects forged events.
-- **PostgreSQL with `ddl-auto=validate`**: expects a valid schema rather than generating blindly in production.
+- API-level idempotency: protects against duplicate payments on retries; in memory in the MVP.
+- Webhook signature validation: rejects forged events.
+- PostgreSQL with `ddl-auto=validate`: expects a valid schema rather than generating blindly in production.
 
 ## Known limitations and roadmap
 
-- In-memory idempotency (state lost on restart) — migrate to persistence.
+- In-memory idempotency (state lost on restart), migrate to persistence.
 - Stripe keys are not embedded; external configuration is required.
 - No CI configured.
 
@@ -119,6 +119,6 @@ An individual project by Kelvin Oliveira, built with orchestrated AI agents and 
 
 ## License and author
 
-MIT — Copyright (c) 2026 Kelvin Rebelo de Oliveira.
+MIT. Copyright (c) 2026 Kelvin Rebelo de Oliveira.
 
 **Author**: [Kelvin Oliveira](https://github.com/KelvinOliveiraCode) · [Portfolio](https://kelvinoliveiracode.github.io/portfolio/)
