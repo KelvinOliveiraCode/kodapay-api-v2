@@ -1,117 +1,124 @@
 # kodapay-api-v2
 
-<div align="center">
-
 **English** · [Português (Brasil)](README.md)
 
-</div>
-
-[![Java 21](https://img.shields.io/badge/Java-21-%23007396?style=flat-square)](https://adoptium.net/) [![Spring Boot 3](https://img.shields.io/badge/Spring%20Boot-3-%236DB33F?style=flat-square)](https://spring.io/projects/spring-boot) [![Maven](https://img.shields.io/badge/Maven-3.9-C71A36?style=flat-square&logo=apache-maven)](https://maven.apache.org/) [![JUnit 5](https://img.shields.io/badge/JUnit-5-25A162?style=flat-square&logo=junit5)](https://junit.org/junit5/) [![MIT License](https://img.shields.io/badge/License-MIT-f4c430?style=flat-square)](LICENSE)
-
-### Projeto funcional ,  kodapay-api-v2
-
----
+[![Java 21](https://img.shields.io/badge/Java-21-%23007396?style=flat-square)](#) [![Spring Boot 3](https://img.shields.io/badge/Spring%20Boot-3-6DB33F?style=flat-square&logo=spring)](#) [![Stripe](https://img.shields.io/badge/Stripe-34-635BFF?style=flat-square&logo=stripe)](#) [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=flat-square&logo=postgresql)](#) [![JUnit 5](https://img.shields.io/badge/JUnit-5-25A162?style=flat-square&logo=junit5)](#) [![MIT License](https://img.shields.io/badge/License-MIT-f4c430?style=flat-square)](LICENSE)
 
 ## What it is
 
-Projeto funcional ,  kodapay-api-v2
+A **REST payment API (version 2)** integrated with **Stripe**: it creates Stripe PaymentIntents, processes **webhooks** (payment confirmed/failed) with signature validation and applies **idempotency** to prevent duplicate payments. Persistence is in **PostgreSQL** (JPA). It is the evolution of `kodapay-api` with real payment-processor integration.
 
----
+## Status
 
-## Quick Start
+A working, tested API (27 tests, BUILD SUCCESS). For production, the Stripe keys are required (see Prerequisites).
 
-```bash
-# Clone and enter
-git clone https://github.com/KelvinOliveiraCode/<repo>.git
-cd <repo>
+## Features
 
-# Build and run tests
-./mvnw verify
+- **Stripe PaymentIntent creation** (`StripeService`): amount in cents, currency, secret-key configuration.
+- **Stripe webhooks** (`StripeWebhookService` + `StripeEventParser`): handles `payment_intent.succeeded` and `payment_intent.payment_failed`, validating the signature (`Webhook.constructEvent`).
+- **Idempotency** (`IdempotencyService`): an idempotency key prevents creating the same payment twice (conflict → `IdempotencyConflictException`).
+- **Payment CRUD** with states (`PaymentStatus`: PENDING, FAILED, COMPLETED).
+- **JPA + PostgreSQL persistence** with `ddl-auto=validate`.
+- **Error handling** via `GlobalExceptionHandler` (404, idempotency conflict, invalid signature).
 
-# Run the application
-./mvnw spring-boot:run
-# API available at http://localhost:8080
-# Swagger UI at http://localhost:8080/docs
+## Architecture
+
+controller → service → domain layers with PostgreSQL (JPA), Stripe integration and in-memory idempotency (MVP).
+
+```mermaid
+flowchart LR
+    C[PaymentController] --> PS[PaymentService]
+    C2[StripeWebhookController] --> WS[StripeWebhookService]
+    WS --> EP[StripeEventParser - signature validation]
+    PS --> SS[StripeService - PaymentIntent]
+    PS --> ID[IdempotencyService - unique key]
+    PS --> REP[PaymentRepository - JPA/PostgreSQL]
+    WS --> PS
 ```
 
-## How it works
+## Stack
 
-Estrutura limpa e modular com separação de responsabilidades.
+- Java 21, Spring Boot 3
+- Stripe SDK (`stripe-java` 34.0), Spring Web, Validation, Data JPA
+- PostgreSQL
+- JUnit 5 / Spring Test
 
----
+## Repository layout
 
-## Capabilities
+```
+kodapay-api-v2/
+├── pom.xml · mvnw
+├── src/main/java/com/kodapay/api/
+│   ├── controller/       # PaymentController, StripeWebhookController
+│   ├── service/          # PaymentService, StripeService, StripeWebhookService,
+│   │                     # StripeEventParser, EventParser, IdempotencyService
+│   ├── domain/           # Payment, PaymentRepository, PaymentStatus
+│   ├── exception/        # GlobalExceptionHandler + specific exceptions
+│   └── controller/dto/   # PaymentRequest, PaymentResponse
+└── src/main/resources/application.properties
+```
 
-| Capacidade | Descrição |
-|------------|-------------|
-| API REST | Spring Boot 3, endpoints versionados, erros RFC 7807 |
-| Cálculo de Taxa | Strategy pattern ,  PIX R$0,49, Boleto R$2,49, Crédito 3,99%, Débito 1,89% |
-| Validação de Risco | Chain of Responsibility ,  HighValue -> Blocklist -> Velocity |
-| Registro de Transações | Registry Singleton em memória com trilha de auditoria completa |
-| Sistema de Eventos | Observer pattern ,  mensageria e métricas desacopladas |
-| Observabilidade | Endpoint /api/v1/observability expondo efeitos dos listeners |
-| Documentação da API | springdoc-openapi ,  Swagger UI em /docs, OpenAPI 3 em /api-docs |
-| Testes | JUnit 5, Mockito, MockMvc ,  testes de integração + unidade |
+## Endpoints
 
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/payments` | Creates a payment (Stripe PaymentIntent) with `currency`, `amount`, `idempotencyKey` |
+| GET | `/payments/{id}` | Fetches a payment by id |
+| POST | `/webhooks/stripe` | Receives a Stripe event (validates the signature) |
 
----
+`PaymentRequest`: `currency` (required), `amount` (> 0), `idempotencyKey` (required).
 
+## Prerequisites and installation
 
+- JDK 21, Maven 3.9+
+- PostgreSQL (default `jdbc:postgresql://localhost:5432/kodapay`, user `kodapay`)
+- Stripe keys via variables/`application.properties`:
+  - `kodapay.stripe.secret-key`
+  - `kodapay.stripe.webhook-secret`
 
----
+```bash
+git clone https://github.com/KelvinOliveiraCode/kodapay-api-v2.git
+cd kodapay-api-v2
+```
 
-## FAQ
+## How to run
 
-<details>
-<summary><strong>What is this project?</strong></summary>
+```bash
+./mvnw spring-boot:run
+# API at http://localhost:8080
+```
 
-A Java/Spring Boot study/project demonstrating core concepts.
+## Tests and quality
 
-</details>
+Real command (verified by the agent, Maven 3.9.16 / JDK 21):
 
-<details>
-<summary><strong>How do I run it?</strong></summary>
+```bash
+mvn -B test
+# Tests run: 27, Failures: 0, Errors: 0 — BUILD SUCCESS
+# (PaymentController 5, StripeWebhookController 2, Idempotency 6, PaymentService 9,
+#  StripeService 1, StripeWebhookService 4)
+```
 
-See [Quick Start](#quick-start) for copy-paste commands.
+There is no CI configured in this repository.
 
-</details>
+## Technical decisions and trade-offs
 
-<details>
-<summary><strong>Are there tests?</strong></summary>
+- **API-level idempotency**: protects against duplicate payments on retries; in memory in the MVP.
+- **Webhook signature validation**: rejects forged events.
+- **PostgreSQL with `ddl-auto=validate`**: expects a valid schema rather than generating blindly in production.
 
-No automated tests in this repository.
+## Known limitations and roadmap
 
-</details>
+- In-memory idempotency (state lost on restart) — migrate to persistence.
+- Stripe keys are not embedded; external configuration is required.
+- No CI configured.
 
-<details>
-<summary><strong>Can I use this in production?</strong></summary>
+## Development process
 
-This is a **study/portfolio project**. Review and harden (auth, persistence, monitoring, etc.) before production use.
+An individual project by Kelvin Oliveira, built with orchestrated AI agents and reviewed by the author. The Stripe integration, the idempotency and the review are the author's.
 
-</details>
+## License and author
 
+MIT — Copyright (c) 2026 Kelvin Rebelo de Oliveira.
 
-
----
-
-## Documentation
-
-- **Source Code** ,  Browse the `src/` directory for implementation details
-- **API Reference** ,  Swagger UI at `/docs` when running
-- **Architecture Diagram** ,  See [architecture.mermaid](docs/architecture.mermaid) (if present)
-- **Changelog** ,  [CHANGELOG.md](CHANGELOG.md) (if present)
-- **Contributing** ,  [CONTRIBUTING.md](CONTRIBUTING.md) (if present)
-
-## License
-
-[MIT](LICENSE) ,  Kelvin Oliveira
-
----
-
-<div align="center">
-
-**Built with** · Java 21 + Spring Boot 3 + Maven
-
-**Author** · [Kelvin Oliveira](https://github.com/KelvinOliveiraCode) · [Portfolio](https://kelvinoliveiracode.github.io/portfolio/)
-
-</div>
+**Author**: [Kelvin Oliveira](https://github.com/KelvinOliveiraCode) · [Portfolio](https://kelvinoliveiracode.github.io/portfolio/)
